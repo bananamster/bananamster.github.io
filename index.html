@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>~ unix-term — Ivan@reutskiy</title>
+  <meta name="description" content="A simple terminal-style personal homepage in a single HTML file." />
+  <style>
+    :root{
+      --bg: #0b0f10;         /* page background */
+      --term: #111618;       /* terminal body */
+      --chrome: #0e1315;     /* window chrome */
+      --grid: #1b2428;       /* subtle borders */
+      --text: #d5e5e7;       /* primary text */
+      --muted: #86a1a9;      /* dim text */
+      --accent: #00d084;     /* green */
+      --accent-dim: #00a86b; 
+      --error: #ff6b6b;      /* red */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font: 16px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      display:grid; place-items:center; padding:24px;
+    }
+    .wrap{width:min(950px, 100%);}
+    .window{
+      background:var(--term); border:1px solid var(--grid); border-radius:14px; overflow:hidden;
+      box-shadow:0 10px 30px rgba(0,0,0,.45);
+    }
+    .titlebar{
+      display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--chrome);
+      border-bottom:1px solid var(--grid);
+    }
+    .dots{display:flex; gap:8px; margin-right:8px}
+    .dot{width:12px;height:12px;border-radius:50%}
+    .dot.red{background:#ff5f56}
+    .dot.yellow{background:#ffbd2e}
+    .dot.green{background:#27c93f}
+    .title{color:var(--muted); font-size:13px}
+
+    .screen{height:min(70vh, 700px); overflow:auto; padding:18px; scrollbar-width:thin}
+    .line{white-space:pre-wrap; word-break:break-word}
+    .host{color:var(--accent)}
+    .path{color:#58a6ff}
+    .muted{color:var(--muted)}
+
+    .prompt{display:flex; align-items:baseline; gap:8px}
+    .input{flex:1; min-width:120px; outline:none; border:none; background:transparent; color:var(--text);}
+    .input[contenteditable]{caret-color:var(--accent)}
+
+    .cursor{display:inline-block; width:7px; height:1.2em; transform:translateY(3px);
+            background:var(--accent); animation:blink 1s steps(1) infinite}
+    @keyframes blink{50%{opacity:0}}
+
+    a{color:#7ee787; text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* mobile tweaks */
+    @media (max-width:600px){
+      .screen{height:60vh}
+      .title{display:none}
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="window" role="application" aria-label="Terminal">
+      <header class="titlebar" aria-hidden="true">
+        <div class="dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+        <div class="title">bash — 80×24</div>
+      </header>
+
+      <div id="screen" class="screen" aria-live="polite" aria-atomic="false">
+        <div class="line muted">Welcome to your terminal-style website. Type <strong>help</strong> to get started.</div>
+      </div>
+
+      <div class="screen" style="border-top:1px solid var(--grid); height:auto; max-height:none;">
+        <div class="prompt">
+          <span class="line"><span class="host">ivan@reutskiy</span>:<span class="path">~</span>$</span>
+          <span id="input" class="input" contenteditable="true" aria-label="Command input" spellcheck="false"></span>
+          <span class="cursor" aria-hidden="true"></span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const screen = document.getElementById('screen');
+    const input = document.getElementById('input');
+
+    // Basic fake file system/content
+    const files = {
+      'about.txt': `Hi, I'm Ivan. I like security, scripting, and tidy terminals.\n\nThis page is a single HTML file made to look like a shell.`,
+      'links.txt': `Find me here:\n- GitHub: https://github.com/yourhandle\n- LinkedIn: https://www.linkedin.com/in/yourhandle\n- Site: https://reutskiy.com`,
+      'projects.txt': `Recent bits:\n- term-site: this page\n- bash-wizard: tiny scripts to automate chores`,
+    };
+
+    const commands = {
+      help(){
+        return `Available commands:\nhelp             Show this help\nwhoami           Print user name\nhostname         Print host name\nls               List files\ncat <file>       View a file (about.txt, links.txt, projects.txt)\nclear            Clear the screen\nopen <url>       Open a link (starts with http)\ncolors           Show accent colors`;
+      },
+      whoami(){ return 'ivan'; },
+      hostname(){ return 'reutskiy.com'; },
+      ls(){ return Object.keys(files).join('\n'); },
+      cat(args){
+        const name = args[0];
+        if (!name) return 'usage: cat <file>';
+        if (!(name in files)) return `cat: ${name}: No such file`;
+        return files[name];
+      },
+      open(args){
+        const url = (args[0]||'').trim();
+        if (!/^https?:\/\//i.test(url)) return 'usage: open <http(s)://url>';
+        try{ window.open(url, '_blank', 'noopener'); return `Opening ${url} ...`; }
+        catch{ return `Could not open ${url}`; }
+      },
+      clear(){ screen.innerHTML=''; return null; },
+      colors(){ return '%caccent%c and %cmuted', ['color: var(--accent)','color:inherit','color: var(--muted)']; },
+    };
+
+    function appendLine(text, cls){
+      const el = document.createElement('div');
+      el.className = 'line' + (cls ? ' ' + cls : '');
+      if (Array.isArray(text)) { el.textContent = text.join(' '); }
+      else { el.textContent = text; }
+      screen.appendChild(el);
+      screen.scrollTop = screen.scrollHeight;
+    }
+
+    function appendHTML(html, cls){
+      const el = document.createElement('div');
+      el.className = 'line' + (cls ? ' ' + cls : '');
+      el.innerHTML = html;
+      screen.appendChild(el);
+      screen.scrollTop = screen.scrollHeight;
+    }
+
+    function appendPrompt(cmd){
+      appendHTML(`<span class="host">ivan@reutskiy</span>:<span class="path">~</span>$ ${escapeHTML(cmd)}`);
+    }
+
+    function escapeHTML(str){
+      return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));
+    }
+
+    function run(raw){
+      const cmd = raw.trim();
+      if (!cmd) return;
+      appendPrompt(cmd);
+
+      const parts = cmd.split(/\s+/);
+      const name = parts[0];
+      const args = parts.slice(1);
+
+      const fn = commands[name];
+      if (!fn){ appendLine(`${name}: command not found`, 'muted'); return; }
+
+      const out = fn(args);
+      if (out === null) return; // cleared screen
+
+      if (Array.isArray(out)){
+        const [fmt, styles] = [out[0], out.slice(1)];
+        const line = document.createElement('div');
+        line.className = 'line';
+        line.textContent = 'accent and muted'; // fallback when console styles unsupported
+        screen.appendChild(line);
+        try{ console.log(fmt, ...styles); }catch{}
+      } else {
+        appendLine(out);
+      }
+    }
+
+    input.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter'){
+        e.preventDefault();
+        const cmd = input.textContent;
+        input.textContent = '';
+        run(cmd);
+      } else if (e.key === 'l' && (e.ctrlKey || e.metaKey)){
+        // Ctrl+L to clear, like a real terminal
+        e.preventDefault();
+        commands.clear();
+      }
+    });
+
+    // Focus input when clicking anywhere on the window
+    document.querySelector('.window').addEventListener('click', ()=> input.focus());
+
+    // Accessibility: announce focus for screenreaders
+    input.setAttribute('role','textbox');
+    input.setAttribute('aria-multiline','false');
+
+    // Start focused
+    input.focus();
+  </script>
+</body>
+</html>
