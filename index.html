@@ -127,7 +127,7 @@
 
     const commands = {
       help(){
-        return `Available commands:\nhelp             Show this help\nwhoami           Print user name\nhostname         Print host name\nls               List files\ncat <file>       View a file (about.txt, links.txt, projects.txt)\nclear            Clear the screen\nopen <url>       Open a link (starts with http)\ncolors           Show accent colors`;
+        return `Available commands:\nhelp             Show this help\nwhoami           Print user name\nhostname         Print host name\nls               List files\ncat <file>       View a file (about.txt, links.txt, projects.txt)\nclear            Clear the screen\ncolors           Show accent colors`;
       },
       whoami(){ return 'ivan'; },
       hostname(){ return 'reutskiy.com'; },
@@ -137,12 +137,6 @@
         if (!name) return 'usage: cat <file>';
         if (!(name in files)) return `cat: ${name}: No such file`;
         return files[name];
-      },
-      open(args){
-        const url = (args[0]||'').trim();
-        if (!/^https?:\/\//i.test(url)) return 'usage: open <http(s)://url>';
-        try{ window.open(url, '_blank', 'noopener'); return `Opening ${url} ...`; }
-        catch{ return `Could not open ${url}`; }
       },
       clear(){ screen.innerHTML=''; return null; },
       colors(){ return '%caccent%c and %cmuted', ['color: var(--accent)','color:inherit','color: var(--muted)']; },
